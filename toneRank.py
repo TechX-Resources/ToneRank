@@ -1,3 +1,7 @@
+# The top-level class for the ToneRank application
+# @author Rylan Ahmadi (Ry305)
+# Last updated 06/06/2025
+
 from gmailPipe import GmailPipe
 
 # A list of the top 100 public domain email addresses, accounting for approx. 75.83% of active emails

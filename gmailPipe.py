@@ -1,3 +1,7 @@
+# Data utility class for storing emails
+# @author Rylan Ahmadi (Ry305)
+# Last updated 06/06/2025
+
 from googleapiclient.discovery import build
 import base64
 from myEmail import Email

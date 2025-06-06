@@ -1,3 +1,7 @@
+# Data utility class for storing emails
+# @author Rylan Ahmadi (Ry305)
+# Last updated 06/06/2025
+
 class Email:
     """ Represents an email and all of its fields.
         fields: subject, sender, date, body """
