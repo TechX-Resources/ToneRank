@@ -5,6 +5,7 @@
 from gmailPipe import GmailPipe
 
 # A list of the top 100 public domain email addresses, accounting for approx. 75.83% of active emails
+# This list was derived from https://email-verify.my-addr.com/list-of-most-popular-email-domains.php
 public_email_domains = {
     "gmail.com", "yahoo.com", "hotmail.com", "aol.com", "hotmail.co.uk", "hotmail.fr", 
     "msn.com", "yahoo.fr", "wanadoo.fr", "orange.fr", "comcast.net", "yahoo.co.uk", 
