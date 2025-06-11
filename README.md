@@ -6,3 +6,4 @@ Each category is ordered by tone and urgency, then the two sorted categories are
 
 Cited Sources:
 1. email-verify.my-addr.com/list-of-most-popular-email-domains.php (list of top 100 public email domains)
+
