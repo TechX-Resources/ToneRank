@@ -1,6 +1,6 @@
 # The top-level class for the ToneRank application
 # @author Rylan Ahmadi (Ry305)
-# Last updated 06/06/2025
+# Last updated 06/12/2025
 
 from gmailPipe import GmailPipe
 
@@ -39,6 +39,10 @@ if __name__ == '__main__':
             cat2_emails.append(e) # If the email is a public domain
         else:
             cat1_emails.append(e) # If the email is NOT a public domain
+
+    # Use llm.py to get a Llama3 client
+    from llm import GroqLlama
+    llama3 = GroqLlama()
 
     # TODO: calculate urgency score for each email
 
