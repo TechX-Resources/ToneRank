@@ -7,7 +7,6 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 import logging
-from functools import wraps
 import time
 from functools import lru_cache
 
@@ -44,37 +43,16 @@ class GroqLlama:
             )
         logger = logging.getLogger(__name__)
         return logger
-
-    # Retry decorator function
-    def retry_on_fail( self, max_retries=MAX_RETRIES, delay=1 ):
-        """ A decorator which marks a function as repeating upon its failure, for a maximum number of times equal to
-        the MAX_RETRIES constant. Takes one user-inputted parameter, which is the logger returned from the get_logger() 
-        method """
-        def decorator(func):
-            @wraps(func)
-            def wrapper(*args, **kwargs):
-                for attempt in range(max_retries - 1):
-                    try:
-                        return func(*args, **kwargs)
-                    except Exception as e:
-                        if attempt == max_retries - 1:
-                            self.logger.error(f"Failed after {max_retries} attempts: {e}")
-                            raise
-                        self.logger.warning(f"Attempt {attempt + 1} failed {e}")
-                        time.sleep(delay * (attempt + 1))
-                return None
-            return wrapper
-        return decorator
     
     # Query Llama 3.2 (without caching the response)
-    def get_llama_response( self, prompt, max_retries=MAX_RETRIES, delay=1 ):
+    def get_llama_response( self, prompt, delay=1 ):
         """ Query Llama3 with retry logic. """
-        for attempt in range(max_retries - 1):
+        for attempt in range(MAX_RETRIES):
             try:
                 return self.prompt_llama(prompt)
             except Exception as e:
-                if attempt == max_retries - 1:
-                    self.logger.error(f"Failed after {max_retries} attempts: {e}")
+                if attempt == MAX_RETRIES:
+                    self.logger.error(f"Failed after {MAX_RETRIES} attempts: {e}")
                     raise
                 self.logger.warning(f"Attempt {attempt + 1} failed {e}")
                 time.sleep(delay * (attempt + 1))
@@ -94,7 +72,8 @@ class GroqLlama:
             raise
 
     # Query Llama 3.2 (with caching the response)
+    @staticmethod
     @lru_cache(maxsize=MAX_CACHE_SIZE)
-    def get_cached_llama_response(self, prompt):
+    def get_cached_llama_response(client, prompt):
         """ Queries Llama3 for a response to the specified prompt. Caches the response. """
-        return self.get_llama_response( prompt ) # call the uncached get_llama_response function
+        return client.get_llama_response( prompt ) # call the uncached get_llama_response function

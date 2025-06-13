@@ -29,10 +29,13 @@ class GmailPipe:
             service = build('gmail', 'v1', credentials=creds)
             return service
         except Exception as e:
-            GmailPipe.reauthorize_gmail()
-            service = build('gmail', 'v1', credentials=creds)
+            new_creds = GmailPipe.reauthorize_gmail()
+            if new_creds is None:
+                raise Exception("Error: Failed to reauthorize Gmail API")
+            service = build('gmail', 'v1', credentials=new_creds)
             return service
     
+    @staticmethod
     def reauthorize_gmail():
         """ Re-authorize the Gmail API to get fresh credentials with refresh token.
         Make sure you have credentials.json (OAuth client credentials) in the same directory. """
