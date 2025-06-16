@@ -26,4 +26,3 @@ class Email:
     
     def __lt__(self, other):
         return self.uscore > other.uscore
-
