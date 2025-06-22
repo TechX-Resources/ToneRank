@@ -1,8 +1,21 @@
 # The top-level class for the ToneRank application
 # @author Rylan Ahmadi (Ry305)
-# Last updated 06/16/2025
+# Last updated 06/18/2025
+# TODO: possibly add manual processing by keyword for the flagged emails, just in case.
 
 from gmailPipe import GmailPipe
+from llm import GroqLlama
+from toneRank_io import ToneRank_IO
+
+# Number constants for the main menu options
+OPTION_1 = 1
+OPTION_2 = 2
+OPTION_3 = 3
+OPTION_4 = 4
+OPTION_5 = 5
+OPTION_6 = 6
+OPTION_7 = 7
+OPTION_8 = 8
 
 # A list of the top 100 public domain email addresses, accounting for approx. 75.83% of active emails
 # Source: email-verify.my-addr.com/list-of-most-popular-email-domains.php
@@ -25,6 +38,10 @@ public_email_domains = {
     "windstream.net", "mac.com", "centurytel.net", "chello.nl", "live.ca", "aim.com", 
     "bigpond.net.au"
 }
+
+
+####################################################################################################################
+
 
 def urgency_prompt_C1(email, client):
     """ Uses the GroqLlama class to prompt Llama3 to calculate an urgency score for a specific Category 1 email. """
@@ -59,6 +76,7 @@ def urgency_prompt_C1(email, client):
     "which must be addressed immediately. Possible indicators of urgency could include: using all caps, an angry " \
     "or frustrated tone, and words or phrases such as 'ASAP', 'as soon as possible', 'vital', 'action required', " \
     "'immediately', 'cannot wait', and so on. " \
+    + ToneRank_IO.get_keyword_string() + \
     "Your response should contain NO text except an decimal number of the format X.X which is no less than 0.0 " \
     "and no more than 10.0.\n\n" \
     "Email subject: " + email.subject + "\n" \
@@ -93,6 +111,7 @@ def urgency_prompt_C2(email, client):
     "which must be addressed immediately. Possible indicators of urgency could include: using all caps, an angry " \
     "or frustrated tone, and words or phrases such as 'ASAP', 'as soon as possible', 'important', 'cannot wait', " \
     "'immediately', 'I need your help', 'need help', and so on. " \
+    + ToneRank_IO.get_keyword_string() + \
     "Your response should contain NO text except an decimal number of the format X.X which is no less than 0.0 " \
     "and no more than 10.0.\n\n" \
     "Email subject: " + email.subject + "\n" \
@@ -105,35 +124,87 @@ def urgency_prompt_C2(email, client):
         raise Exception("Query failed.")
     return float(response) # Return uscore
 
-if __name__ == '__main__':
+
+####################################################################################################################
+
+
+def whitelist_emails():
+    """ Adds user-specified emails to a whitelist which composes Category 0. """
+
+    emails = input("Enter emails in a space-separated list (e.g. \"johndoe@gmail.com janedoe@yahoo.com\"):\n")
+    email_list = emails.split(" ")
+    # For each email
+    for e in email_list:
+        ToneRank_IO.add_email_to_whitelist(e) # Add the email to the whitelist
+    print() # Add newline
+
+def remove_whitelisted_emails():
+    """ Removes emails from the whitelist which composes Category 0. """
+    emails = input("Enter emails in a space-separated list (e.g. \"johndoe@gmail.com janedoe@yahoo.com\"):\n")
+    email_list = emails.split(" ")
+    # For each email
+    for e in email_list:
+        ToneRank_IO.remove_email(e) # Add the email to the whitelist
+    print() # Add newline
+
+def add_keywords():
+    """ Adds user-specified keywords to a list used in calculation of email urgency. """
+
+    keywords = input("Enter keywords in a space-separated list (e.g. \"urgent ToneRank now\"):\n")
+    keyword_list = keywords.split(" ")
+    # For each keyword
+    for w in keyword_list:
+        ToneRank_IO.add_keyword(w) # Add the word to the keywords list
+    print() # Add newline
+
+def remove_keywords():
+    """ Removes keywords from your list. """
+
+    keywords = input("Enter keywords in a space-separated list (e.g. \"urgent ToneRank now\"):\n")
+    keyword_list = keywords.split(" ")
+    # For each keyword
+    for w in keyword_list: 
+        ToneRank_IO.remove_keyword(w) # Add the word to the keywords list
+    print() # Add newline
+
+def toneRank_main():
+    """ Handles the main flow, from email retrieval to priority report. """
+
     emails = GmailPipe.get_emails_last_24_hours() # get emails
 
     # split into their categories
+    cat0_emails = []
     cat1_emails = []
     cat2_emails = []
     for e in emails:
-        domain = e.sender.split("@")[1] # get the part of the sender data after the '@'
-        if (domain[len(domain) - 1] == '>'):
-            domain = domain[0:len(domain)-1] # remove the closing '>', if there is one
-        if domain in public_email_domains: 
+
+        e_split = e.sender.split("<") # extract the email address
+        email_address = e_split[len(e_split) - 1]
+        if (email_address[len(email_address) - 1] == '>'):
+            email_address = email_address[0:len(email_address)-1] # remove the closing '>', if there is one
+        domain = email_address.split("@")[1] # get the part of the sender data after the '@'
+
+        if email_address in ToneRank_IO.email_whitelist:
+            cat0_emails.append(e) # If the email is whitelisted
+        elif domain in public_email_domains: 
             cat2_emails.append(e) # If the email is a public domain
         else:
             cat1_emails.append(e) # If the email is NOT a public domain
 
     # TODO: remove this line
     # Print number of messages
-    print(f"Found {len(emails)} messages from the past 24 hours ({len(cat1_emails)} from C1, {len(cat2_emails)} from C2).")
+    print(f"Found {len(emails)} messages from the past 24 hours ({len(cat0_emails)} from C0, {len(cat1_emails)} from C1, {len(cat2_emails)} from C2).")
 
     # Use llm.py to get a Llama3 client
-    from llm import GroqLlama
     llama3 = GroqLlama()
 
     flagged_emails = [] # Declare a list used to hold all Category 1 emails which could not be processed
 
-    # TODO: Create separate prompt functions with different prompts for C1 and C2
-
     # Calculate urgency score for each email in category 1
     try:
+        for e in cat0_emails:
+            uscore = urgency_prompt_C1(e, llama3) # get the urgency score using helper method
+            e.uscore = uscore # set uscore
         for e in cat1_emails:
             uscore = urgency_prompt_C1(e, llama3) # get the urgency score using helper method
             e.uscore = uscore # set uscore
@@ -146,9 +217,7 @@ if __name__ == '__main__':
             flagged_emails.append(e) # if email failed to be processed
     
     # Create overall email ranking
-    emails_ranked = sorted(cat1_emails) + sorted(cat2_emails)
-
-    # TODO: possibly add manual processing by keyword for the flagged emails, just in case.
+    emails_ranked = sorted(cat0_emails) + sorted(cat1_emails) + sorted(cat2_emails)
 
     # Print Priority Report
 
@@ -156,12 +225,13 @@ if __name__ == '__main__':
     print("          PRIORITY REPORT            ")
     print("=====================================\n")
 
-    print("Top 5 emails to read Right Now:")
-    count = 1
-    for i in range(5):
-        print(f"{count}. {emails_ranked[i]}")
-        count = count + 1
-    print("")
+    if len(emails_ranked) >= 5:
+        print("Top 5 emails to read Right Now:")
+        count = 1
+        for i in range(5):
+            print(f"{count}. {emails_ranked[i]}")
+            count = count + 1
+        print("")
 
     print("All emails by order of urgency:")
     count = 1
@@ -179,3 +249,59 @@ if __name__ == '__main__':
             count = count + 1
         print("")
 
+if __name__ == '__main__':
+    print("\n")
+    print("@@@@@@@@@    @@@@@@@    @@@   @@@   @@@@@@@@@      @@@@@@@@     @@@@@@@    @@@   @@@   @@@   @@@")
+    print("   @@@      @@@   @@@   @@@@  @@@   @@@            @@@   @@@   @@@   @@@   @@@@  @@@   @@@  @@@ ")
+    print("   @@@      @@@   @@@   @@@ @ @@@   @@@            @@@   @@@   @@@   @@@   @@@ @ @@@   @@@ @@@  ")
+    print("   @@@      @@@   @@@   @@@  @@@@   @@@@@@@@@      @@@@@@@@    @@@@@@@@@   @@@  @@@@   @@@@@@   ")
+    print("   @@@      @@@   @@@   @@@   @@@   @@@            @@@ @@@     @@@   @@@   @@@   @@@   @@@ @@@  ")
+    print("   @@@      @@@   @@@   @@@   @@@   @@@            @@@  @@@    @@@   @@@   @@@   @@@   @@@  @@@ ")
+    print("   @@@       @@@@@@@    @@@   @@@   @@@@@@@@@      @@@   @@@   @@@   @@@   @@@   @@@   @@@   @@@")
+    print("\n")
+
+    print("\n=====================================")
+    print("            MAIN MENU                ")
+    print("=====================================\n")
+
+    try:
+        ToneRank_IO.load_remote_data() # Load data from file
+    except Exception as e:
+        print(f"Error while loading keywords and email whitelist from the file: {e}")
+
+    while( True ):
+
+        print("1. Add emails to high-priority list\n2. Add keywords of special interest\n3. Remove emails from high-priority" \
+              " list\n4. Remove keywords from list\n5. List your high-priority emails\n6. List your keywords\n7. Run ToneRank" \
+              "\n8. Quit\n")
+
+        response = input("Select an option: ") # get user selection
+        try:
+            responseNum = int(response) # Parse to an integer
+            if responseNum < OPTION_1 or responseNum > OPTION_8: # If integer is out of bounds
+                raise ValueError
+        except: # If the input was invalid
+            print("Please enter a number from 1-4\n")
+            continue
+
+        if responseNum == OPTION_1: # If user entered option 1
+            whitelist_emails()
+        elif responseNum == OPTION_2: # If user entered option 2
+            add_keywords()
+        elif responseNum == OPTION_3:
+            remove_whitelisted_emails()
+        elif responseNum == OPTION_4:
+            remove_keywords()
+        elif responseNum == OPTION_5:
+            print(f"Emails you have marked as high-priority:\n{ToneRank_IO.email_whitelist}\n")
+        elif responseNum == OPTION_6:
+            print(f"Keywords you have marked as high-priority:\n{ToneRank_IO.keywords}\n")
+        elif responseNum == OPTION_7:
+            toneRank_main()
+            break
+        elif responseNum == OPTION_8: 
+            break
+    try:
+        ToneRank_IO.save_local_data()
+    except Exception as e:
+        print(f"Error while saving keywords and email whitelist to the file: {e}")
