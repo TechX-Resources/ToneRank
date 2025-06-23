@@ -201,20 +201,28 @@ def toneRank_main():
     flagged_emails = [] # Declare a list used to hold all Category 1 emails which could not be processed
 
     # Calculate urgency score for each email in category 1
-    try:
-        for e in cat0_emails:
+    for e in cat0_emails:
+        try:
             uscore = urgency_prompt_C1(e, llama3) # get the urgency score using helper method
             e.uscore = uscore # set uscore
-        for e in cat1_emails:
+        except Exception as ex:
+            if ex == "Query failed.":
+                flagged_emails.append(e) # if email failed to be processed
+    for e in cat1_emails:
+        try:
             uscore = urgency_prompt_C1(e, llama3) # get the urgency score using helper method
             e.uscore = uscore # set uscore
-        # Calculate urgency score for each email in category 2
-        for e in cat2_emails:
+        except Exception as ex:
+            if ex == "Query failed.":
+                flagged_emails.append(e) # if email failed to be processed
+    # Calculate urgency score for each email in category 2
+    for e in cat2_emails:
+        try:
             uscore = urgency_prompt_C2(e, llama3) # get the urgency score using helper method
             e.uscore = uscore # set uscore
-    except Exception as ex:
-        if ex == "Query failed.":
-            flagged_emails.append(e) # if email failed to be processed
+        except Exception as ex:
+            if ex == "Query failed.":
+                flagged_emails.append(e) # if email failed to be processed
     
     # Create overall email ranking
     emails_ranked = sorted(cat0_emails) + sorted(cat1_emails) + sorted(cat2_emails)
