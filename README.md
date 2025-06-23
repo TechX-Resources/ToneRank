@@ -2,7 +2,7 @@
 
 Tone Rank reads emails in an inbox and splits emails into two categories: emails which are from institutions, businesses, or organizations, and emails which are from individuals. Each category is ordered by tone and urgency, then the two sorted categories are presented in order; the first category first, and the second (personal email) category second.
 
-<img width="1005" alt="ToneRank Architecture" src="https://github.com/user-attachments/assets/21026115-fa4c-4d6f-883f-26d96482dad7"/>
+<img width="1006" alt="ToneRank Architecture" src="https://github.com/user-attachments/assets/55576f0a-1e99-4821-93a2-42906907437e" />
 
 1. The Gmail API is used to retrieve all emails sent to the user's email address in the past 24 hours
 2. The emails are divided into Category 1 (businesses, organizations, and institutions) and Category 2 (personal)
