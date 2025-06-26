@@ -152,12 +152,15 @@ def get_keyword_modifier(email):
     
     uscore_modifier = 0.0
 
+    subject = email.subject.lower()
+    body = email.body.lower()
+
     for word in ToneRank_IO.keywords:
-        if word in email.subject or word in email.body:
+        pattern = r'\b' + re.escape(word) + r'\b'
+        if re.findall(pattern, subject) or word in re.findall(pattern, body):
             uscore_modifier = uscore_modifier + DEFAULT_WEIGHT
 
     return uscore_modifier
-
 
 
 ####################################################################################################################
@@ -246,10 +249,8 @@ def toneRank_main():
     for e in cat0_emails:
         try:
             uscore = urgency_prompt_C1(e, llama3) # get the base urgency score using helper method
-            print(f"Before: {uscore}")
             uscore_modifier = get_keyword_modifier(e) # use helper method to get a modifier for the uscore
             uscore = uscore + uscore_modifier
-            print(f"After: {uscore}")
             e.uscore = uscore # set uscore
         except Exception as ex:
             if ex == "Query failed.":
