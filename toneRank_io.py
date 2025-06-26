@@ -1,6 +1,6 @@
 # Utility class for handling I/O, specifically storing data in files
 # @author Rylan Ahmadi (Ry305)
-# Last updated 06/21/2025
+# Last updated 06/26/2025
 
 import csv
 import os
@@ -65,17 +65,6 @@ class ToneRank_IO:
         email = email.strip().lower() # Normalize the keyword
         if email in ToneRank_IO.email_whitelist:
             ToneRank_IO.email_whitelist.remove(email)
-
-    @staticmethod
-    def get_keyword_string():
-        str = ""
-        if len(ToneRank_IO.keywords) > 0:
-            str = "You should consider the following words to be very indicative of urgency: "
-            for w in ToneRank_IO.keywords: # Add each keyword to the string
-                str = str + w.strip().lower() + ", "
-            str = str[0:len(str)-2] # Remove the final comma
-            str = str + ".\n" # Add a period and a newline
-        return str
     
     @staticmethod
     def load_remote_data():
