@@ -1,8 +1,7 @@
 # The top-level class for the ToneRank application
 # @author Rylan Ahmadi (Ry305)
-# Last updated 06/26/2025
-# TODO: make keyword weight customizable
-# TODO: make the Top Five function customizable (top 3, top 10, top 1, etc.)
+# Last updated 06/29/2025
+# TODO: make the keyword search better
 # TODO: add email chain context
 # TODO: possibly add manual processing by keyword for the flagged emails, just in case.
 
@@ -20,6 +19,8 @@ OPTION_5 = 5
 OPTION_6 = 6
 OPTION_7 = 7
 OPTION_8 = 8
+OPTION_9 = 9
+OPTION_10 = 10
 
 # The default weight assigned to a user-specified keyword
 DEFAULT_WEIGHT = 0.1
@@ -155,10 +156,10 @@ def get_keyword_modifier(email):
     subject = email.subject.lower()
     body = email.body.lower()
 
-    for word in ToneRank_IO.keywords:
+    for word in ToneRank_IO.keywords.keys():
         pattern = r'\b' + re.escape(word) + r'\b'
         if re.findall(pattern, subject) or word in re.findall(pattern, body):
-            uscore_modifier = uscore_modifier + DEFAULT_WEIGHT
+            uscore_modifier = uscore_modifier + ToneRank_IO.keywords[word]
 
     return uscore_modifier
 
@@ -195,7 +196,13 @@ def add_keywords():
     keyword_list = keywords.split()
     # For each keyword
     for w in keyword_list:
-        ToneRank_IO.add_keyword(w) # Add the word to the keywords list
+        while True:
+            try: # Prompt user for weight, break loop on failure
+                weight = float(input(f"Enter the weight of the keyword \"{w}\" (default 0.1): "))
+                break
+            except: # Error message
+                print( "Please enter an decimal number." )
+        ToneRank_IO.add_keyword(w, weight) # Add the word to the keywords list
     print() # Add newline
 
 def remove_keywords():
@@ -207,6 +214,33 @@ def remove_keywords():
     for w in keyword_list: 
         ToneRank_IO.remove_keyword(w) # Add the word to the keywords list
     print() # Add newline
+
+def update_priority_report():
+    """ Update various parts of the priority report. """
+
+    # TODO: update size of the top 5
+    while True:
+        try:
+            top_email_size = int(input("\nThe priority report includes a shortlist of the most urgent emails.\n" \
+                                "How many emails do you want in this list (default 5)? "))
+            if (top_email_size < ToneRank_IO.MIN_TOP_EMAIL_SIZE or top_email_size > ToneRank_IO.MAX_TOP_EMAIL_SIZE):
+                raise ValueError
+            ToneRank_IO.top_email_size = top_email_size
+            break
+        except Exception as e:
+            print(f"\nPlease enter an integer number from {ToneRank_IO.MIN_TOP_EMAIL_SIZE} to {ToneRank_IO.MAX_TOP_EMAIL_SIZE} (inclusive)")
+    while True:
+        try:
+            todo_sample_size = int(input("\nThe priority report includes a todo list made from top emails.\n" \
+                                "How many emails do you want to be used when making this list (default 10)? "))
+            if (todo_sample_size < ToneRank_IO.MIN_TODO_SAMPLE_SIZE or todo_sample_size > ToneRank_IO.MAX_TODO_SAMPLE_SIZE):
+                raise ValueError
+            ToneRank_IO.todo_list_sample_size = todo_sample_size
+            print() # For the newline
+            break
+        except Exception as e:
+            print(f"\nPlease enter an integer number from {ToneRank_IO.MIN_TODO_SAMPLE_SIZE} to {ToneRank_IO.MAX_TODO_SAMPLE_SIZE} (inclusive)")
+    # TODO: update size of the tasks thing
 
 def toneRank_main():
     """ Handles the main flow, from email retrieval to priority report. """
@@ -280,14 +314,13 @@ def toneRank_main():
 
     # Generate a to-do list from top-priority emails
 
-    top_ten_emails_text = ""
-    for i in range(10): # For up to the first 10 emails
+    todo_list_sample_emails = ""
+    for i in range(ToneRank_IO.todo_list_sample_size): # For up to the first 10 emails
         if len(emails_ranked) > i:
             # Make a string representing the email's contents
-            top_ten_emails_text = top_ten_emails_text + \
-            f"Subject #{i+1}: " + emails_ranked[i].subject + f"\nBody #{i+1}: " + emails_ranked[i].body + "\n"
-
-    tasks = generate_todo_list(top_ten_emails_text, llama3) # generate the tasks
+            todo_list_sample_emails = todo_list_sample_emails + f"Subject #{i+1}: " + \
+                emails_ranked[i].subject + f"\nBody #{i+1}: " + emails_ranked[i].body + "\n"
+    tasks = generate_todo_list(todo_list_sample_emails, llama3) # generate the tasks
 
     # Print Priority Report
 
@@ -299,10 +332,10 @@ def toneRank_main():
     print("To-Do List:\n" + tasks + "\n")
 
     # Print top 5 most urgent emails (if there were more than 5 total)
-    if len(emails_ranked) >= 5:
-        print("Top 5 emails to read Right Now:")
+    if len(emails_ranked) >= ToneRank_IO.top_email_size:
+        print(f"Top {ToneRank_IO.top_email_size} emails to read Right Now:")
         count = 1
-        for i in range(5):
+        for i in range(ToneRank_IO.top_email_size):
             print(f"{count}. {emails_ranked[i]}")
             count = count + 1
         print("")
@@ -342,18 +375,18 @@ if __name__ == '__main__':
     try:
         ToneRank_IO.load_remote_data() # Load data from file
     except Exception as e:
-        print(f"Error while loading keywords and email whitelist from the file: {e}")
+        print(f"Error while user preferences from the file: {e}")
 
     while( True ):
 
-        print("1. Add emails to high-priority list\n2. Add keywords of special interest\n3. Remove emails from high-priority" \
-              " list\n4. Remove keywords from list\n5. List your high-priority emails\n6. List your keywords\n7. Run ToneRank" \
-              "\n8. Quit\n")
+        print("1.  Add emails to high-priority list\n2.  Add keywords of special interest\n3.  Remove emails from high-priority" \
+              " list\n4.  Remove keywords from list\n5.  List your high-priority emails\n6.  List your keywords\n" \
+              "7.  List priority report settings" "\n8.  Customise priority report \n9.  Run ToneRank\n10. Quit\n")
 
         response = input("Select an option: ") # get user selection
         try:
             responseNum = int(response) # Parse to an integer
-            if responseNum < OPTION_1 or responseNum > OPTION_8: # If integer is out of bounds
+            if responseNum < OPTION_1 or responseNum > OPTION_10: # If integer is out of bounds
                 raise ValueError
         except: # If the input was invalid
             print("Please enter a number from 1-4\n")
@@ -370,13 +403,21 @@ if __name__ == '__main__':
         elif responseNum == OPTION_5:
             print(f"Emails you have marked as high-priority:\n{ToneRank_IO.email_whitelist}\n")
         elif responseNum == OPTION_6:
-            print(f"Keywords you have marked as high-priority:\n{ToneRank_IO.keywords}\n")
+            keystr = ""
+            for key in ToneRank_IO.keywords.keys():
+                keystr = keystr + f"{key} ({ToneRank_IO.keywords[key]}), "
+            print(f"Keywords you have marked as high-priority:\n{keystr}\n")
         elif responseNum == OPTION_7:
+            print(f"Priority report will highlight the top {ToneRank_IO.top_email_size} emails, and " \
+              f"makes a to-do list from the top {ToneRank_IO.todo_list_sample_size} emails\n")
+        elif responseNum == OPTION_8: 
+            update_priority_report()
+        elif responseNum == OPTION_9: 
             toneRank_main()
             break
-        elif responseNum == OPTION_8: 
+        elif responseNum == OPTION_10:
             break
     try:
         ToneRank_IO.save_local_data()
     except Exception as e:
-        print(f"Error while saving keywords and email whitelist to the file: {e}")
+        print(f"Error while saving user preferences to the file: {e}")
