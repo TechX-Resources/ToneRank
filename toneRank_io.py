@@ -26,7 +26,7 @@ class ToneRank_IO:
     MAX_TODO_SAMPLE_SIZE = 20
     DEFAULT_TODO_SAMPLE_SIZE = 10
 
-    keywords: dict[str:float] = {} # Stores user-inputted keywords to be used in urgency calculation
+    keywords: dict[str, float] = {} # Stores user-inputted keywords to be used in urgency calculation
     email_whitelist: List[str] = [] # Stores emails the user has whitelisted for Category 0
     top_email_size: int # The number of emails to be used in "Top X emails to read Right Now"
     todo_list_sample_size: int # The number of emails to be used when making a to-do list
