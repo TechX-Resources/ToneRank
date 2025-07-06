@@ -1,7 +1,6 @@
 # The top-level class for the ToneRank application
 # @author Rylan Ahmadi (Ry305)
-# Last updated 06/29/2025
-# TODO: make the keyword search better
+# Last updated 07/06/2025
 # TODO: add email chain context
 # TODO: possibly add manual processing by keyword for the flagged emails, just in case.
 
@@ -242,6 +241,10 @@ def update_priority_report():
             print(f"\nPlease enter an integer number from {ToneRank_IO.MIN_TODO_SAMPLE_SIZE} to {ToneRank_IO.MAX_TODO_SAMPLE_SIZE} (inclusive)")
     # TODO: update size of the tasks thing
 
+
+####################################################################################################################
+
+
 def toneRank_main():
     """ Handles the main flow, from email retrieval to priority report. """
 
@@ -278,12 +281,21 @@ def toneRank_main():
     llama3 = GroqLlama()
 
     flagged_emails = [] # Declare a list used to hold all Category 1 emails which could not be processed
+    cat0_key_emails = [] # Declare a list to hold Category 0 emails which include keywords
+    cat1_key_emails = [] # Declare a list to hold Category 1 emails which include keywords
+    cat2_key_emails = [] # Declare a list to hold Category 2 emails which include keywords
 
     # Calculate urgency score for each email in category 1
     for e in cat0_emails:
         try:
             uscore = urgency_prompt_C1(e, llama3) # get the base urgency score using helper method
             uscore_modifier = get_keyword_modifier(e) # use helper method to get a modifier for the uscore
+            
+            if uscore_modifier > 0.0: # If keywords were found
+                e.subject = e.subject + " ☆" # Add a star to indicate keyword presence
+                cat0_emails.remove(e) # Remove from main list
+                cat0_key_emails.append(e) # Move to keyword sub-list
+
             uscore = uscore + uscore_modifier
             e.uscore = uscore # set uscore
         except Exception as ex:
@@ -293,6 +305,12 @@ def toneRank_main():
         try:
             uscore = urgency_prompt_C1(e, llama3) # get the base urgency score using helper method
             uscore_modifier = get_keyword_modifier(e) # use helper method to get a modifier for the uscore
+            
+            if uscore_modifier > 0.0: # If keywords were found
+                e.subject = e.subject + " ☆" # Add a star to indicate keyword presence
+                cat1_emails.remove(e) # Remove from main list
+                cat1_key_emails.append(e) # Move to keyword sub-list
+
             uscore = uscore + uscore_modifier
             e.uscore = uscore # set uscore
         except Exception as ex:
@@ -303,6 +321,12 @@ def toneRank_main():
         try:
             uscore = urgency_prompt_C2(e, llama3) # get the base urgency score using helper method
             uscore_modifier = get_keyword_modifier(e) # use helper method to get a modifier for the uscore
+            
+            if uscore_modifier > 0.0: # If keywords were found
+                e.subject = e.subject + " ☆" # Add a star to indicate keyword presence
+                cat2_emails.remove(e) # Remove from main list
+                cat2_key_emails.append(e) # Move to keyword sub-list
+
             uscore = uscore + uscore_modifier
             e.uscore = uscore # set uscore
         except Exception as ex:
@@ -310,7 +334,8 @@ def toneRank_main():
                 flagged_emails.append(e) # if email failed to be processed
     
     # Create overall email ranking
-    emails_ranked = sorted(cat0_emails) + sorted(cat1_emails) + sorted(cat2_emails)
+    emails_ranked = sorted(cat0_key_emails) + sorted(cat0_emails) + sorted(cat1_key_emails) + \
+        sorted(cat1_emails) + sorted(cat2_key_emails) + sorted(cat2_emails)
 
     # Generate a to-do list from top-priority emails
 
