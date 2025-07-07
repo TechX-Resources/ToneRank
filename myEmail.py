@@ -1,6 +1,6 @@
 # Data utility class for storing emails
 # @author Rylan Ahmadi (Ry305)
-# Last updated 06/21/2025
+# Last updated 07/06/2025
 
 class Email:
     """ Represents an email and all of its fields.
@@ -16,7 +16,7 @@ class Email:
         self.uscore = -1.0 # the urgency score will be set later, in toneRank
 
     def __repr__(self):
-        return f"Email(sender={self.sender}, subject={self.subject!r}, uscore={self.uscore!r})"
+        return f"{self.sender}: {self.subject!r} | uscore: {self.uscore!r}"
     
     def __eq__(self, other):
         return self.uscore == other.uscore
