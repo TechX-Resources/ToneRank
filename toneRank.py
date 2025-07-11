@@ -1,6 +1,6 @@
 # The top-level class for the ToneRank application
 # @author Rylan Ahmadi (Ry305)
-# Last updated 07/06/2025
+# Last updated 07/11/2025
 # TODO: add email chain context
 # TODO: possibly add manual processing by keyword for the flagged emails, just in case.
 
@@ -8,6 +8,7 @@ from gmailPipe import GmailPipe
 from llm import GroqLlama
 from toneRank_io import ToneRank_IO
 import re
+from termcolor import colored
 
 # Number constants for the main menu options
 OPTION_1 = 1
@@ -20,9 +21,6 @@ OPTION_7 = 7
 OPTION_8 = 8
 OPTION_9 = 9
 OPTION_10 = 10
-
-# The default weight assigned to a user-specified keyword
-DEFAULT_WEIGHT = 0.1
 
 # A list of the top 100 public domain email addresses, accounting for approx. 75.83% of active emails
 # Source: email-verify.my-addr.com/list-of-most-popular-email-domains.php
@@ -102,9 +100,9 @@ def urgency_prompt_C1(email, client):
     # Attempt to query Llama3, and let the calling method know if this fails
     try:
         response = GroqLlama.get_cached_llama_response(client, prompt3)
+        return float(response) # Return uscore
     except Exception as e:
-        raise Exception("Query failed.")
-    return float(response) # Return uscore
+        raise Exception(f"Query failed: {e}.")
 
 def urgency_prompt_C2(email, client):
     """ Uses the GroqLlama class to prompt Llama3 to calculate an urgency score for a specific Category 2 email. """
@@ -135,8 +133,8 @@ def generate_todo_list(top_ten_email_list, client):
 
     prompt = "You are a secretary to an important leader. They do not have time to answer their emails, but need to do " \
     "all of the tasks requested of them by email. Below will be a list of up to ten emails, each with a subject line and " \
-    "body. Extract a list of tasks your boss must do. Your response should include nothing except the list (no title should" \
-    "be included).\n" + top_ten_email_list 
+    "body. Extract a list of tasks your boss must do. Your response should include nothing except the items in a numbered" \
+    "list (no title should be included).\n" + top_ten_email_list 
 
     # Attempt to query Llama3, and let the calling method know if this fails
     try:
@@ -148,7 +146,7 @@ def generate_todo_list(top_ten_email_list, client):
 def get_keyword_modifier(email):
 
     """ Utilizes the list of user-specified keywords to generate a modifier for the urgency score. For each keyword
-     present, a specific weight will be added (by default, 0.1) """
+     present, a specific weight will be added (by default, 1) """
     
     uscore_modifier = 0.0
 
@@ -174,7 +172,7 @@ def whitelist_emails():
     # For each email
     for e in email_list:
         if re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", e) is None: # If email is invalid
-            print(f"Invalid email: {e}")
+            print(colored(f"Invalid email: {e}", "red"))
         else: # If email is valid
             ToneRank_IO.add_email_to_whitelist(e) # Add the email to the whitelist
     print() # Add newline
@@ -197,10 +195,10 @@ def add_keywords():
     for w in keyword_list:
         while True:
             try: # Prompt user for weight, break loop on failure
-                weight = float(input(f"Enter the weight of the keyword \"{w}\" (default 0.1): "))
+                weight = float(input(f"Enter the weight of the keyword \"{w}\" (default 1): "))
                 break
             except: # Error message
-                print( "Please enter an decimal number." )
+                print( colored("Please enter an decimal number.", "red") )
         ToneRank_IO.add_keyword(w, weight) # Add the word to the keywords list
     print() # Add newline
 
@@ -217,7 +215,6 @@ def remove_keywords():
 def update_priority_report():
     """ Update various parts of the priority report. """
 
-    # TODO: update size of the top 5
     while True:
         try:
             top_email_size = int(input("\nThe priority report includes a shortlist of the most urgent emails.\n" \
@@ -227,7 +224,7 @@ def update_priority_report():
             ToneRank_IO.top_email_size = top_email_size
             break
         except Exception as e:
-            print(f"\nPlease enter an integer number from {ToneRank_IO.MIN_TOP_EMAIL_SIZE} to {ToneRank_IO.MAX_TOP_EMAIL_SIZE} (inclusive)")
+            print(colored(f"\nPlease enter an integer number from {ToneRank_IO.MIN_TOP_EMAIL_SIZE} to {ToneRank_IO.MAX_TOP_EMAIL_SIZE} (inclusive)", "red"))
     while True:
         try:
             todo_sample_size = int(input("\nThe priority report includes a todo list made from top emails.\n" \
@@ -238,8 +235,7 @@ def update_priority_report():
             print() # For the newline
             break
         except Exception as e:
-            print(f"\nPlease enter an integer number from {ToneRank_IO.MIN_TODO_SAMPLE_SIZE} to {ToneRank_IO.MAX_TODO_SAMPLE_SIZE} (inclusive)")
-    # TODO: update size of the tasks thing
+            print(colored(f"\nPlease enter an integer number from {ToneRank_IO.MIN_TODO_SAMPLE_SIZE} to {ToneRank_IO.MAX_TODO_SAMPLE_SIZE} (inclusive)", "red"))
 
 
 ####################################################################################################################
@@ -252,7 +248,7 @@ def toneRank_main():
 
     # If there were no emails to rank
     if len(emails) == 0:
-        print("No emails found from the past 24 hours.\n")
+        print(colored("No emails found from the past 24 hours.\n"))
         return
 
     # split into their categories
@@ -298,9 +294,8 @@ def toneRank_main():
 
             uscore = uscore + uscore_modifier
             e.uscore = uscore # set uscore
-        except Exception as ex:
-            if ex == "Query failed.":
-                flagged_emails.append(e) # if email failed to be processed
+        except Exception:
+            flagged_emails.append(e) # if email failed to be processed
     for e in cat1_emails:
         try:
             uscore = urgency_prompt_C1(e, llama3) # get the base urgency score using helper method
@@ -313,14 +308,13 @@ def toneRank_main():
 
             uscore = uscore + uscore_modifier
             e.uscore = uscore # set uscore
-        except Exception as ex:
-            if ex == "Query failed.":
-                flagged_emails.append(e) # if email failed to be processed
+        except Exception:
+            flagged_emails.append(e) # if email failed to be processed
     # Calculate urgency score for each email in category 2
     for e in cat2_emails:
         try:
             uscore = urgency_prompt_C2(e, llama3) # get the base urgency score using helper method
-            uscore_modifier = get_keyword_modifier(e) # use helper method to get a modifier for the uscore
+            uscore_modifier = get_keyword_modifier(e) # use he lper method to get a modifier for the uscore
             
             if uscore_modifier > 0.0: # If keywords were found
                 e.subject = e.subject + " ☆" # Add a star to indicate keyword presence
@@ -329,9 +323,8 @@ def toneRank_main():
 
             uscore = uscore + uscore_modifier
             e.uscore = uscore # set uscore
-        except Exception as ex:
-            if ex == "Query failed.":
-                flagged_emails.append(e) # if email failed to be processed
+        except Exception:
+            flagged_emails.append(e) # if email failed to be processed
     
     # Create overall email ranking
     emails_ranked = sorted(cat0_key_emails) + sorted(cat0_emails) + sorted(cat1_key_emails) + \
@@ -349,16 +342,17 @@ def toneRank_main():
 
     # Print Priority Report
 
-    print("\n=====================================")
-    print("          PRIORITY REPORT            ")
-    print("=====================================\n")
+    print(colored("\n=====================================", attrs=["bold"]))
+    print(colored("          PRIORITY REPORT            ", attrs=["bold"]))
+    print(colored("=====================================\n", attrs=["bold"]))
 
     # Print to-do list
-    print("To-Do List:\n" + tasks + "\n")
+    print(colored("To-Do List:", attrs=["bold", "underline"]))
+    print(colored(tasks + "\n"))
 
     # Print top 5 most urgent emails (if there were more than 5 total)
     if len(emails_ranked) >= ToneRank_IO.top_email_size:
-        print(f"Top {ToneRank_IO.top_email_size} emails to read Right Now:")
+        print(colored(f"Top {ToneRank_IO.top_email_size} emails to read Right Now:", attrs=["bold", "underline"]))
         count = 1
         for i in range(ToneRank_IO.top_email_size):
             print(f"{count}. {emails_ranked[i]}")
@@ -366,7 +360,7 @@ def toneRank_main():
         print("")
 
     # Print total email ranking
-    print("All emails by order of urgency:")
+    print(colored("All emails by order of urgency:", attrs=["bold", "underline"]))
     count = 1
     for e in emails_ranked:
         print(f"{count}. {e}")
@@ -374,8 +368,8 @@ def toneRank_main():
     print("")
 
     # If some emails could not be processed, print them
-    if len(flagged_emails) != 0:
-        print("Emails which could not be processed by the system (urgency unknown):")
+    if len(flagged_emails) > 0:
+        print(colored("Emails which could not be processed by the system (urgency unknown):", attrs=["bold", "underline"]))
         count = 1
         for e in flagged_emails:
             print(f"{count}. {e}")
@@ -384,18 +378,18 @@ def toneRank_main():
 
 if __name__ == '__main__':
     print("\n")
-    print("@@@@@@@@@    @@@@@@@    @@@   @@@   @@@@@@@@@      @@@@@@@@     @@@@@@@    @@@   @@@   @@@   @@@")
-    print("   @@@      @@@   @@@   @@@@  @@@   @@@            @@@   @@@   @@@   @@@   @@@@  @@@   @@@  @@@ ")
-    print("   @@@      @@@   @@@   @@@ @ @@@   @@@            @@@   @@@   @@@   @@@   @@@ @ @@@   @@@ @@@  ")
-    print("   @@@      @@@   @@@   @@@  @@@@   @@@@@@@@@      @@@@@@@@    @@@@@@@@@   @@@  @@@@   @@@@@@   ")
-    print("   @@@      @@@   @@@   @@@   @@@   @@@            @@@ @@@     @@@   @@@   @@@   @@@   @@@ @@@  ")
-    print("   @@@      @@@   @@@   @@@   @@@   @@@            @@@  @@@    @@@   @@@   @@@   @@@   @@@  @@@ ")
-    print("   @@@       @@@@@@@    @@@   @@@   @@@@@@@@@      @@@   @@@   @@@   @@@   @@@   @@@   @@@   @@@")
+    print(colored("@@@@@@@@@    @@@@@@@    @@@   @@@   @@@@@@@@@      @@@@@@@@     @@@@@@@    @@@   @@@   @@@   @@@", "red"))
+    print(colored("   @@@      @@@   @@@   @@@@  @@@   @@@            @@@   @@@   @@@   @@@   @@@@  @@@   @@@  @@@ ", "red"))
+    print(colored("   @@@      @@@   @@@   @@@ @ @@@   @@@            @@@   @@@   @@@   @@@   @@@ @ @@@   @@@ @@@  ", "red"))
+    print(colored("   @@@      @@@   @@@   @@@  @@@@   @@@@@@@@@      @@@@@@@@    @@@@@@@@@   @@@  @@@@   @@@@@@   ", "red"))
+    print(colored("   @@@      @@@   @@@   @@@   @@@   @@@            @@@ @@@     @@@   @@@   @@@   @@@   @@@ @@@  ", "red"))
+    print(colored("   @@@      @@@   @@@   @@@   @@@   @@@            @@@  @@@    @@@   @@@   @@@   @@@   @@@  @@@ ", "red"))
+    print(colored("   @@@       @@@@@@@    @@@   @@@   @@@@@@@@@      @@@   @@@   @@@   @@@   @@@   @@@   @@@   @@@", "red"))
     print("\n")
 
-    print("\n=====================================")
-    print("            MAIN MENU                ")
-    print("=====================================\n")
+    print(colored("\n=====================================", attrs=["bold"]))
+    print(colored("            MAIN MENU                ", attrs=["bold"]))
+    print(colored("=====================================\n", attrs=["bold"]))
 
     try:
         ToneRank_IO.load_remote_data() # Load data from file
@@ -404,17 +398,17 @@ if __name__ == '__main__':
 
     while( True ):
 
-        print("1.  Add emails to high-priority list\n2.  Add keywords of special interest\n3.  Remove emails from high-priority" \
+        print(colored("1.  Add emails to high-priority list\n2.  Add keywords of special interest\n3.  Remove emails from high-priority" \
               " list\n4.  Remove keywords from list\n5.  List your high-priority emails\n6.  List your keywords\n" \
-              "7.  List priority report settings" "\n8.  Customise priority report \n9.  Run ToneRank\n10. Quit\n")
+              "7.  List priority report settings" "\n8.  Customise priority report \n9.  Run ToneRank\n10. Quit\n"))
 
-        response = input("Select an option: ") # get user selection
+        response = input(colored("Select an option: ", attrs=["bold"])) # get user selection
         try:
             responseNum = int(response) # Parse to an integer
             if responseNum < OPTION_1 or responseNum > OPTION_10: # If integer is out of bounds
                 raise ValueError
         except: # If the input was invalid
-            print("Please enter a number from 1-4\n")
+            print(colored("Please enter a number from 1-10\n", "red"))
             continue
 
         if responseNum == OPTION_1: # If user entered option 1
@@ -426,15 +420,15 @@ if __name__ == '__main__':
         elif responseNum == OPTION_4:
             remove_keywords()
         elif responseNum == OPTION_5:
-            print(f"Emails you have marked as high-priority:\n{ToneRank_IO.email_whitelist}\n")
+            print(colored(f"Emails you have marked as high-priority:\n{ToneRank_IO.email_whitelist}\n"))
         elif responseNum == OPTION_6:
             keystr = ""
             for key in ToneRank_IO.keywords.keys():
                 keystr = keystr + f"{key} ({ToneRank_IO.keywords[key]}), "
             print(f"Keywords you have marked as high-priority:\n{keystr}\n")
         elif responseNum == OPTION_7:
-            print(f"Priority report will highlight the top {ToneRank_IO.top_email_size} emails, and " \
-              f"makes a to-do list from the top {ToneRank_IO.todo_list_sample_size} emails\n")
+            print(colored(f"Priority report will highlight the top {ToneRank_IO.top_email_size} emails, and " \
+              f"makes a to-do list from the top {ToneRank_IO.todo_list_sample_size} emails\n"))
         elif responseNum == OPTION_8: 
             update_priority_report()
         elif responseNum == OPTION_9: 

@@ -1,6 +1,6 @@
 # The top-level class for the ToneRank application
 # @author Rylan Ahmadi (Ry305)
-# Last updated 06/12/2025
+# Last updated 07/11/2025
 
 from groq import Groq
 import os
@@ -12,7 +12,7 @@ from functools import lru_cache
 
 # Constants
 MAX_RETRIES = 3 # the maximum number of retries allowed if a failure occurs
-MAX_PROMPT_LEN = 100 # the max length of a prompt delivered to the model
+MAX_RESPONSE_LEN = 300 # the max length of a response from the model (in tokens)
 MAX_CACHE_SIZE = 1000 # the max length of the cache size
 TEMP = 0.0 # the temperature of the model
 
@@ -51,8 +51,9 @@ class GroqLlama:
             try:
                 return self.prompt_llama(prompt)
             except Exception as e:
-                if attempt == MAX_RETRIES:
+                if attempt == (MAX_RETRIES - 1):
                     self.logger.error(f"Failed after {MAX_RETRIES} attempts: {e}")
+                    print(f"\nQuery failed: {e}.\n")
                     raise
                 self.logger.warning(f"Attempt {attempt + 1} failed {e}")
                 time.sleep(delay * (attempt + 1))
@@ -64,7 +65,7 @@ class GroqLlama:
             chat_completion = self.client.chat.completions.create( 
                     messages=[ { "role": "user", "content": prompt, } ],
                 model="llama3-8b-8192",
-                max_tokens = MAX_PROMPT_LEN,
+                max_tokens = MAX_RESPONSE_LEN,
                 temperature=TEMP)
             return chat_completion.choices[0].message.content
         except Exception as e:
