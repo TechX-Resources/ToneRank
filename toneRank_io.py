@@ -1,10 +1,11 @@
 # Utility class for handling I/O, specifically storing data in files
 # @author Rylan Ahmadi (Ry305)
-# Last updated 06/29/2025
+# Last updated 07/11/2025
 
 import csv
 import os
 from typing import List
+from termcolor import colored
 
 class ToneRank_IO:
 
@@ -49,14 +50,14 @@ class ToneRank_IO:
         """ Adds a new keyword to the list if it is not a duplicate, and if the capacity has not
          been reached. """
         if len(ToneRank_IO.keywords) >= ToneRank_IO.MAX_KEYWORDS:
-            print(f"Cannot add keyword. Maximum number of keywords ({ToneRank_IO.MAX_KEYWORDS}) reached.")
+            print(colored(f"Cannot add keyword. Maximum number of keywords ({ToneRank_IO.MAX_KEYWORDS}) reached.", "red"))
             return # exit
         keyword = keyword.strip().lower() # Normalize the keyword
         # Add the keyword (and its weight) to the list
         if keyword not in ToneRank_IO.keywords:
             ToneRank_IO.keywords[keyword] = weight
         else:
-            print(f"Keyword \"{keyword}\" has already been added.")
+            print(colored(f"Keyword \"{keyword}\" has already been added.", "red"))
     
     @staticmethod
     def remove_keyword(keyword):
@@ -72,7 +73,7 @@ class ToneRank_IO:
         if email not in ToneRank_IO.email_whitelist:
             ToneRank_IO.email_whitelist.append(email)
         else:
-            print(f"Email \"{email}\" has already been added.")
+            print(colored(f"Email \"{email}\" has already been added.", "red"))
 
     @staticmethod
     def remove_email(email):
