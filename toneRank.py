@@ -6,10 +6,10 @@
 
 from gmailPipe import GmailPipe
 from llm import GroqLlama
-import prompts
 from toneRank_io import ToneRank_IO
 import re
 from termcolor import colored
+import json
 
 # Number constants for the main menu options
 OPTION_1 = 1
@@ -49,10 +49,10 @@ public_email_domains = {
 ####################################################################################################################
 
 
-def urgency_prompt_C1(email, client):
+def urgency_prompt_C1(email, client, prompt_data):
     """ Uses the GroqLlama class to prompt Llama3 to calculate an urgency score for a specific Category 1 email. """
 
-    prompt3 = prompts.prompt1 + "Email subject: " + email.subject + "\n" + "Email body: " + email.body + "\n"
+    prompt3 = prompt_data['prompts']['uscore_prompt_one']['prompt'] + "Email subject: " + email.subject + "\n" + "Email body: " + email.body + "\n"
     
     # Attempt to query Llama3, and let the calling method know if this fails
     try:
@@ -61,11 +61,11 @@ def urgency_prompt_C1(email, client):
     except Exception as e:
         raise Exception(f"Query failed: {e}.")
 
-def urgency_prompt_C2(email, client):
+def urgency_prompt_C2(email, client, prompt_data):
     """ Uses the GroqLlama class to prompt Llama3 to calculate an urgency score for a specific Category 2 email. """
 
     # Prompt with examples (potential bias)
-    prompt = prompts.prompt2 + "Email subject: " + email.subject + "\n" + "Email body: " + email.body + "\n"
+    prompt = prompt_data['prompts']['uscore_prompt_two']['prompt'] + "Email subject: " + email.subject + "\n" + "Email body: " + email.body + "\n"
     
     # Attempt to query Llama3, and let the calling method know if this fails
     try:
@@ -74,11 +74,11 @@ def urgency_prompt_C2(email, client):
         raise Exception("Query failed.")
     return float(response) # Return uscore
 
-def generate_todo_list(top_ten_email_list, client):
+def generate_todo_list(top_ten_email_list, client, prompt_data):
 
     """ Generates a to-do list for the user using a string representing emails and a client. """
 
-    prompt = prompts.todo_prompt + top_ten_email_list 
+    prompt = prompt_data['prompts']['todo_prompt']['prompt'] + top_ten_email_list 
 
     # Attempt to query Llama3, and let the calling method know if this fails
     try:
@@ -221,6 +221,10 @@ def toneRank_main():
     # Use llm.py to get a Llama3 client
     llama3 = GroqLlama()
 
+    # Open prompts.json
+    with open('prompts.json', 'r') as f:
+        prompt_data = json.load(f)
+
     flagged_emails = [] # Declare a list used to hold all Category 1 emails which could not be processed
     cat0_key_emails = [] # Declare a list to hold Category 0 emails which include keywords
     cat1_key_emails = [] # Declare a list to hold Category 1 emails which include keywords
@@ -229,7 +233,7 @@ def toneRank_main():
     # Calculate urgency score for each email in category 1
     for e in cat0_emails:
         try:
-            uscore = urgency_prompt_C1(e, llama3) # get the base urgency score using helper method
+            uscore = urgency_prompt_C1(e, llama3, prompt_data) # get the base urgency score using helper method
             uscore_modifier = get_keyword_modifier(e) # use helper method to get a modifier for the uscore
             
             if uscore_modifier > 0.0: # If keywords were found
@@ -243,7 +247,7 @@ def toneRank_main():
             flagged_emails.append(e) # if email failed to be processed
     for e in cat1_emails:
         try:
-            uscore = urgency_prompt_C1(e, llama3) # get the base urgency score using helper method
+            uscore = urgency_prompt_C1(e, llama3, prompt_data) # get the base urgency score using helper method
             uscore_modifier = get_keyword_modifier(e) # use helper method to get a modifier for the uscore
             
             if uscore_modifier > 0.0: # If keywords were found
@@ -258,7 +262,7 @@ def toneRank_main():
     # Calculate urgency score for each email in category 2
     for e in cat2_emails:
         try:
-            uscore = urgency_prompt_C2(e, llama3) # get the base urgency score using helper method
+            uscore = urgency_prompt_C2(e, llama3, prompt_data) # get the base urgency score using helper method
             uscore_modifier = get_keyword_modifier(e) # use helper method to get a modifier for the uscore
             
             if uscore_modifier > 0.0: # If keywords were found
@@ -283,7 +287,7 @@ def toneRank_main():
             # Make a string representing the email's contents
             todo_list_sample_emails = todo_list_sample_emails + f"Subject #{i+1}: " + \
                 emails_ranked[i].subject + f"\nBody #{i+1}: " + emails_ranked[i].body + "\n"
-    tasks = generate_todo_list(todo_list_sample_emails, llama3) # generate the tasks
+    tasks = generate_todo_list(todo_list_sample_emails, llama3, prompt_data) # generate the tasks
 
     # Print Priority Report
 
